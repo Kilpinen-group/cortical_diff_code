@@ -1,0 +1,5 @@
+Pool1/outs/metrics_summary.csv
+Pool2_B2/outs/metrics_summary.csv
+Pool3/outs/metrics_summary.csv
+Pool4_B2/outs/metrics_summary.csv
+Pool4/outs/metrics_summary.csv

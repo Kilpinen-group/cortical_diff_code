@@ -1,0 +1,5 @@
+Pool1/outs/possorted_genome_bam.bam
+Pool2_B2/outs/possorted_genome_bam.bam
+Pool3/outs/possorted_genome_bam.bam
+Pool4_B2/outs/possorted_genome_bam.bam
+Pool4/outs/possorted_genome_bam.bam
