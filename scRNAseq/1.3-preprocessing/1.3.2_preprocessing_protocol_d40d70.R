@@ -1,6 +1,4 @@
-
-
-## Rosa's protocol dataset
+## d40_70
 
 library(Seurat)
 library(readxl)
@@ -9,7 +7,7 @@ library(dplyr)
 library(harmony)
 
 ### change PATH ###
-rootDir <- "protocol/"
+rootDir <- "d40_70/"
 ###################
 
 summfilesFile <- paste0(rootDir,"d40d70_summaryFiles.txt")
@@ -27,7 +25,6 @@ qcTab$file <- summfiles$V1
 qcTab$sample <- sapply(strsplit(qcTab$file,"/"), function(x) x[10])
 
 
-## tp!
 metadata <- read_excel(path = paste0(rootDir, "d40d70_infoDesign.xlsx"),
                        sheet = "Design")
 metadata <- as.data.frame(metadata)
@@ -67,7 +64,7 @@ processing <- function(return.obj=T, mito=F){
   allobj <- sapply(list_10xfiles, function(x){
     
     tenXrun <- Read10X(data.dir = x)
-    tenXrun <- CreateSeuratObject(counts = tenXrun, project = "RosaLiveseyMod")
+    tenXrun <- CreateSeuratObject(counts = tenXrun, project = "d40_70")
     sample <- sapply(strsplit(x,"/"), function(x) x[10])
     
     tenXrun@meta.data$sampleId <-  sample
@@ -161,11 +158,4 @@ mitoQC <- do.call("rbind", mitoQC)
 rownames(mitoQC) <- NULL
 
 
-saveRDS(allobj, file="seuratObjects/ModLiveseyRosa.RDS")
-
-## Probably do not need those RDS objects below, they were intended just for QC
-# saveRDS(nCountQC, file="protocol/aggr/nFeatures/ModLiveseyRosa_nFeat.RDS")
-# saveRDS(mitoQC, file="protocol/aggr/mitoCounts/ModLiveseyRosa_mito.RDS")
-# saveRDS(qcTab, file="protocol/aggr/qcTab/ModLiveseyRosa_qctab.RDS")
-
-
+saveRDS(allobj, file="seuratObjects/CorticalDiff_d40_70.RDS")

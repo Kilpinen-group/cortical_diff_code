@@ -1,4 +1,3 @@
-
 library(Seurat)
 library(wesanderson)
 library(ggpubr)
@@ -21,8 +20,8 @@ library(patchwork)
 
 seuratObjects <- "seuratObjects/"
 seuratObjects <- paste0(seuratObjects,dir(seuratObjects))
-seuratObjects <- c(seuratObjects[grepl("ModLiveseyRosa.RDS", seuratObjects)],
-                   seuratObjects[grepl("CellPlexAdithi.RDS", seuratObjects)])
+seuratObjects <- c(seuratObjects[grepl("CorticalDiff_d40_70.RDS", seuratObjects)],
+                   seuratObjects[grepl("Cellplex_d20.RDS", seuratObjects)])
 
 allobj <- sapply(seuratObjects, function(x){
   
@@ -40,50 +39,47 @@ names(allobj)[maskAdithi] <-
 maskRosa <- grepl("rosaDataset", names(allobj))
 names(allobj)[maskRosa] <- sapply(strsplit(names(allobj)[maskRosa], "/"), function(x) x[10])
 
-mlo.big <- merge(allobj[[1]], y=do.call("c",allobj[2:length(allobj)]),
-                 project="OTCorticalNeurons")
+all <- merge(allobj[[1]], y=do.call("c",allobj[2:length(allobj)]),
+                 project="CorticalNeurons")
 rm(allobj)
 
-mlo.big@meta.data$donorId_simplified <- mlo.big@meta.data$donorId
-mask_notHipsci <- !grepl("HPSI", mlo.big@meta.data$donorId_simplified)
-mlo.big@meta.data$donorId_simplified[mask_notHipsci] <- gsub(".+KIL.", "", mlo.big@meta.data$donorId_simplified[mask_notHipsci])
-mlo.big@meta.data$donorId_simplified[mask_notHipsci] <- gsub("-",".", sapply(strsplit(mlo.big@meta.data$donorId_simplified[mask_notHipsci],"_"), function(x) x[1]))
+all@meta.data$donorId_simplified <- all@meta.data$donorId
+mask_notHipsci <- !grepl("HPSI", all@meta.data$donorId_simplified)
+all@meta.data$donorId_simplified[mask_notHipsci] <- gsub(".+KIL.", "", all@meta.data$donorId_simplified[mask_notHipsci])
+all@meta.data$donorId_simplified[mask_notHipsci] <- gsub("-",".", sapply(strsplit(all@meta.data$donorId_simplified[mask_notHipsci],"_"), function(x) x[1]))
 
 
 ## Add biological and technical replicates info
+all@meta.data$bioRep <- NA
+all@meta.data$techRep <- NA
+all@meta.data$Protocol <- NA
 
-mlo.big@meta.data[mlo.big@meta.data$orig.ident=="RosaLiveseyMod",]$orig.ident <- "AtlasProject"
-
-mlo.big@meta.data$bioRep <- NA
-mlo.big@meta.data$techRep <- NA
-mlo.big@meta.data$Protocol <- NA
-
-metadata <- as.data.frame(read_excel(path="/lustre/scratch126/cellgen/kilpinen/pp9/scRNA-seq/OpenTargetsNPC/OT_pilotAndCellplex.xlsx",
-                                     sheet="rosaProtocol"))
-maskRosa <- mlo.big@meta.data$orig.ident=="AtlasProject"
-mlo.big@meta.data$Protocol[maskRosa] <- metadata[match(paste0(mlo.big@meta.data[maskRosa,]$sampleId,"-",mlo.big@meta.data[maskRosa,]$donorId_simplified),
+metadata <- as.data.frame(read_excel(path="CorticalDiff_d20_40_70.xlsx",
+                                     sheet="d40_70"))
+maskRosa <- all@meta.data$orig.ident=="d40_70"
+all@meta.data$Protocol[maskRosa] <- metadata[match(paste0(all@meta.data[maskRosa,]$sampleId,"-",all@meta.data[maskRosa,]$donorId_simplified),
                                                        paste0(metadata$library10x,"-",metadata$line)),]$protocol
-mlo.big@meta.data$techRep[maskRosa] <- metadata[match(paste0(mlo.big@meta.data[maskRosa,]$sampleId,"-",mlo.big@meta.data[maskRosa,]$donorId_simplified),
+all@meta.data$techRep[maskRosa] <- metadata[match(paste0(all@meta.data[maskRosa,]$sampleId,"-",all@meta.data[maskRosa,]$donorId_simplified),
                                                       paste0(metadata$library10x,"-",metadata$line)),]$techRep
 
 
 
-metadata <- as.data.frame(read_excel(path="/lustre/scratch126/cellgen/kilpinen/pp9/scRNA-seq/OpenTargetsNPC/OT_pilotAndCellplex.xlsx",
-                                     sheet="Adithi"))
-maskAdithi <- mlo.big@meta.data$orig.ident=="Cellplex_Adithi"
-mlo.big@meta.data$Protocol[maskAdithi] <- metadata[match(paste0(mlo.big@meta.data[maskAdithi,]$sampleId,"-",mlo.big@meta.data[maskAdithi,]$donorId),
+metadata <- as.data.frame(read_excel(path="CorticalDiff_d20_40_70.xlsx",
+                                     sheet="d20"))
+maskAdithi <- all@meta.data$orig.ident=="Cellplex_d20"
+all@meta.data$Protocol[maskAdithi] <- metadata[match(paste0(all@meta.data[maskAdithi,]$sampleId,"-",all@meta.data[maskAdithi,]$donorId),
                                                          paste0(metadata$library10x,"-",metadata$line)),]$protocol
-mlo.big@meta.data$techRep[maskAdithi] <- metadata[match(paste0(mlo.big@meta.data[maskAdithi,]$sampleId,"-",mlo.big@meta.data[maskAdithi,]$donorId),
+all@meta.data$techRep[maskAdithi] <- metadata[match(paste0(all@meta.data[maskAdithi,]$sampleId,"-",all@meta.data[maskAdithi,]$donorId),
                                                         paste0(metadata$library10x,"-",metadata$line)),]$techRep
-mlo.big@meta.data$bioRep[maskAdithi] <- metadata[match(paste0(mlo.big@meta.data[maskAdithi,]$sampleId,"-",mlo.big@meta.data[maskAdithi,]$donorId),
+all@meta.data$bioRep[maskAdithi] <- metadata[match(paste0(all@meta.data[maskAdithi,]$sampleId,"-",all@meta.data[maskAdithi,]$donorId),
                                                        paste0(metadata$library10x,"-",metadata$line)),]$bioRep
 
 ## genes expressed in less than 0.1% total cells are removed
-selected_f <- names(which(rowSums(mlo.big@assays$RNA[]>0)>0.001*dim(mlo.big)[1]))
-mlo.big <- subset(mlo.big, features = selected_f)
-mlo.big
+selected_f <- names(which(rowSums(all@assays$RNA[]>0)>0.001*dim(all)[1]))
+all <- subset(all, features = selected_f)
+all
 
-saveRDS(mlo.big, "seuratObjects/rawCountsCorticalDiff70D.RDS")
+saveRDS(all, "seuratObjects/rawCountsCorticalDiff70D.RDS")
 
 
 ###########################
@@ -184,6 +180,4 @@ selected_f <- names(which(rowSums(reference@assays$RNA[]>0)>0.001*dim(reference)
 reference <- subset(reference, features = selected_f)
 
 
-saveRDS(reference, "seuratObjects/emilia/rawCountsBhaduriOrganoids.RDS")
-
-
+saveRDS(reference, "seuratObjects/rawCountsBhaduriOrganoids.RDS")

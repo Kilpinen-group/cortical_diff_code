@@ -1,5 +1,3 @@
-
-
 ## Cellplex_d20
 
 library(Seurat)
@@ -9,9 +7,8 @@ library(dplyr)
 library(harmony)
 library(GenomicRanges)
 
-
 ### change PATH ###
-rootDir <- "cellplex/"
+rootDir <- "d20/"
 ###################
 
 summfilesFile <- paste0(rootDir,"d20_summaryFiles.txt")
@@ -75,7 +72,7 @@ rownames(tmp) <- NULL
 qcTab <- tmp
 
 
-### This requires the infoDesign.xlsx file !!!!!
+### This requires the infoDesign.xlsx file
 
 metadata <- read_excel(path = paste0(rootDir, "d20_infoDesign.xlsx"),
                        sheet = "Design")
@@ -85,8 +82,8 @@ metadata$QC <- NULL
 qcTab <- merge(metadata, qcTab, by.x="10x Samples", by.y="sample")
 
 
-## this is in the summary!!!
-##  Cells assigned to a sample 11516 (50.89%)
+## this is in the summary
+## Cells assigned to a sample 11516 (50.89%)
 ## Cells assigned to this sample    843 (3.73%)
 
 
@@ -138,7 +135,7 @@ individualSampleperc <- returnSingletons(summfiles, type="single")
 
 
 
-## start processing!!!
+### start processing
 list_10xfiles <- paste0(rootDir,"d20_list_10xfiles.txt")
 list_10xfiles <- read.table(list_10xfiles)$V1
 
@@ -147,10 +144,10 @@ processing <- function(list_10xfiles, return.obj=T, mito=F){
   allobj <- sapply(list_10xfiles, function(x){
     print(paste0("Processing sample ",x))
     tenXrun <- Read10X(data.dir = x)[[1]]
-    tenXrun <- CreateSeuratObject(counts = tenXrun, project = "Cellplex_Adithi")
+    tenXrun <- CreateSeuratObject(counts = tenXrun, project = "Cellplex_d20")
     sample <- sapply(strsplit(x,"/"), function(x) x[10])
     
-    tenXrun@meta.data$sampleId <-  sample
+    tenXrun@meta.data$sampleId <- sample
     tenXrun@meta.data$differentiationDay <- qcTab[match(sample, qcTab$`10x Samples`),]$differentiationDay
     
     metadata <- read_excel(path = paste0(rootDir, "d20_infoDesign.xlsx"),
@@ -237,11 +234,4 @@ mitoQC <- do.call("rbind", mitoQC)
 rownames(mitoQC) <- NULL
 
 
-saveRDS(allobj, file="seuratObjects/CellPlexAdithi.RDS")
-
-## Probably do not need those RDS objects below, they were intended just for QC
-#saveRDS(nCountQC, file="cellplex/aggr/nFeatures/CellPlexAdith_nFeat.RDS")
-#saveRDS(mitoQC, file="cellplex/aggr/mitoCounts/CellPlexAdith_mito.RDS")
-#saveRDS(qcTab, file="cellplex/aggr/qcTab/CellPlexAdith_qctab.RDS")
-
-
+saveRDS(allobj, file="seuratObjects/Cellplex_d20.RDS")

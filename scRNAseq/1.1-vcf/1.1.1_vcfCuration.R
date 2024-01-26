@@ -16,15 +16,12 @@ mapFile <- read.table("KIL_JUN_2021.map")
 ## Load vcf file
 vcfFile <- readVcf(file="plink.vcf")
 
-## keep variants in autosomal + X chr
+## keep variants in autosomal
 mapFile <- mapFile[!mapFile$V1 %in% c("X","Y","XY","MT","0"),]
 vcfFile <- vcfFile[names(rowRanges(vcfFile)) %in% mapFile$V2,]
 
 ## Remove unwanted seqlevels
 seqlevels(vcfFile) <- seqlevels(vcfFile)[2:23]
-
-## Change plink chromosome 23 to X as standard NCBI notation
-#vcfFile <- renameSeqlevels(vcfFile, c("23"="X"))
 seqlevelsStyle(vcfFile) <- "NCBI"
 
 ## Creation of GRanges from map file

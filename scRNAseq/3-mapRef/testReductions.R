@@ -26,7 +26,7 @@ if (referenceRed=="pca"){
   print(redUmap)
 }
 
-query <- readRDS("seuratObjects/mapRef/regOutCellPlexAndProtocol.RDS")
+query <- readRDS("seuratObjects/mapRef/regOutCorticalDiff70D.RDS")
 
 if (dataset=="Polioudakis"){
   print(dataset)
@@ -84,8 +84,6 @@ if (queryRed=="pca"){
 ### Reference ###
 #################
 
-
-#### group by might change in Bhaduri otherwise error !!
 
 if (dataset=="Polioudakis"){
   
@@ -209,32 +207,3 @@ print("Percentage of cells with predicted.cell.type.score > 0.5")
 print(round(table(dfResults$predicted.celltype.score>0.5)["TRUE"]*100/sum(table(dfResults$predicted.celltype.score>0.5)),2))
 
 saveRDS(dfResults, file=paste0("seuratObjects/mapRef/tabs/",dataset,"_Q",queryRed,"_R",referenceRed,".RDS"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

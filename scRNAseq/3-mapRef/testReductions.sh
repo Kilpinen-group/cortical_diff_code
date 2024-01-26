@@ -10,4 +10,3 @@ dataset=$(echo $line | cut -f3 -d" ")
 echo "Starting mapping reference"
 echo Q${queryRed} R${refRed} D${dataset}
 Rscript testReductions.R $queryRed $refRed $dataset
-
