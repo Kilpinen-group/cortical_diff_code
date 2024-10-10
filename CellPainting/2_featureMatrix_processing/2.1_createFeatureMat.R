@@ -1,24 +1,24 @@
 setwd(".") #change to your working dir
 
-library(oobLegacy)
+library(oob)
 library(ggplot2)
 library(DBI)
 library(plotly)
 library(igraph)
 
+set.seed(666)
+
+inputDir <- "zenodoArchive/"
 dir.create("out2.1", showWarnings = FALSE)
 
-wellAnnot <- fastRead("zenodoArchive/wellAnnot.tsv")
+wellAnnot <- fastRead(paste0(inputDir,"CP_wellAnnot.tsv"))
 
-outBIASdir <- "zenodoArchive"
 conDay20 <-
-  dbConnect(RSQLite::SQLite(), dbname = paste0(outBIASdir, "CP_rawOutCProfiler_d20.db"))
+  dbConnect(RSQLite::SQLite(), dbname = paste0(inputDir, "CP_rawOutCProfiler_d20.db"))
 conDay40 <-
-  dbConnect(RSQLite::SQLite(), dbname = paste0(outBIASdir, "CP_rawOutCProfiler_d40.db"))
+  dbConnect(RSQLite::SQLite(), dbname = paste0(inputDir, "CP_rawOutCProfiler_d40.db"))
 conDay70 <-
-  dbConnect(RSQLite::SQLite(), dbname = paste0(outBIASdir, "CP_rawOutCProfiler_d70.db"))
-
-
+  dbConnect(RSQLite::SQLite(), dbname = paste0(inputDir, "CP_rawOutCProfiler_d70.db"))
 
 resPerImage <-
   list(
@@ -26,6 +26,7 @@ resPerImage <-
     d40 = dbReadTable(conDay40, "Per_Image"),
     d70 = dbReadTable(conDay70, "Per_Image")
   )
+
 for (el in names(resPerImage))
   resPerImage[[el]]$dataset <- el
 resPerImage <- do.call("rbind", resPerImage)
@@ -50,53 +51,52 @@ powerLogSlopeCols <-
        cn(resPerImage),
        value = TRUE)
 
+qplotDensity(apply(resPerImage[, powerLogSlopeCols], 1, min), returnGraph = T) +
+  geom_vline(xintercept = -2.5) + xlab("Minumum of PowerLogLogSlope of the 4 channels")
+ggsave("out2.1/thresPowerLogLogSlope.pdf",
+       width = 5,
+       height = 4)
 
-qplotDensity(apply(resPerImage[, powerLogSlopeCols], 1, min), returnGraph = T)+geom_vline(xintercept = -2.5)+xlab("Minumu of PowerLogLogSlope of the 4 channels")
-ggsave("out2.1/thresPowerLogLogSlope.pdf",width = 5,height = 4)
+resPerImage$passBlurQC <- apply(resPerImage[, powerLogSlopeCols], 1, min) > -2.5
+summary(resPerImage$passBlurQC)
 
-resPerImage$passBlurQC <-apply(resPerImage[, powerLogSlopeCols], 1, min) > -2.5 ; summary(resPerImage$passBlurQC)
-
-pdf("out2.1/passBlurQCpca.pdf",width = 10,height = 9)
-pca2d(PCA(resPerImage[, powerLogSlopeCols], transpose = F),
-      colorBy = as.factor(resPerImage$passBlurQC))
-dev.off()
-
-
-resPeout2.1ect <-
+resPerCell <-
   list(
     d20 = dbReadTable(conDay20, "Per_Object"),
     d40 = dbReadTable(conDay40, "Per_Object"),
     d70 = dbReadTable(conDay70, "Per_Object")
   )
 
-for (el in names(resPeout2.1ect))
-  resPeout2.1ect[[el]]$dataset <- el
-resPeout2.1ect <- do.call("rbind", resPeout2.1ect)
+for (el in names(resPerCell))
+  resPerCell[[el]]$dataset <- el
+resPerCell <- do.call("rbind", resPerCell)
 
-
-resPeout2.1ect$imageKey <-
-  paste0(resPeout2.1ect$dataset, resPeout2.1ect$ImageNumber)
+#attribute image metadata to cell
+resPerCell$imageKey <-
+  paste0(resPerCell$dataset, resPerCell$ImageNumber)
 for (f in c(grep("Image_Metadata", cn(resPerImage), value = TRUE), "passBlurQC"))
-  resPeout2.1ect[, f] <- resPerImage[resPeout2.1ect$imageKey, f]
+  resPerCell[, f] <- resPerImage[resPerCell$imageKey, f]
 
-resPeout2.1ect[, "Image_FileName_OrigNucleusHoechst"] <- resPerImage[resPeout2.1ect$imageKey,"Image_FileName_OrigNucleusHoechst" ] #get filename in resPeout2.1ect
 
-resPeout2.1ect <- resPeout2.1ect[resPeout2.1ect$passBlurQC,]
-resPeout2.1ect <- resPeout2.1ect[resPeout2.1ect$Image_Metadata_QCFlag_isBlurry!=1 & resPeout2.1ect$Image_Metadata_QCFlag_isSaturated !=1 ,]
+
+resPerCell[, "Image_FileName"] <- resPerImage[resPerCell$imageKey, "Image_FileName_OrigNucleusHoechst"] #get filename in resPerCell
+
+#Only keep cells corresponding to images that passed the blur QC
+resPerCell <- resPerCell[resPerCell$passBlurQC, ]
+resPerCell <- resPerCell[resPerCell$Image_Metadata_QCFlag_isBlurry != 1 &
+                           resPerCell$Image_Metadata_QCFlag_isSaturated != 1 , ]
 rm(resPerImage)
 gc()
 
-
-
-resPeout2.1ect$Cytoplasm_AreaShape_Area <-
-  resPeout2.1ect$Cells_AreaShape_Area - resPeout2.1ect$Nuclei_AreaShape_Area
+resPerCell$Cytoplasm_AreaShape_Area <-
+  resPerCell$Cells_AreaShape_Area - resPerCell$Nuclei_AreaShape_Area
 
 ###Split in metadata/feature matrix, rename features
 
 quantitativeCols <- c()
-for (col in cn(resPeout2.1ect)) {
-  if (is.numeric(resPeout2.1ect[1:2, col])) {
-    if (len(unique(resPeout2.1ect[1:10000, col])) > 2) { #not logical
+for (col in cn(resPerCell)) {
+  if (is.numeric(resPerCell[1:2, col])) {
+    if (len(unique(resPerCell[1:10000, col])) > 2) { #not logical
       if (strsplitNth(col, split = "_", n = 1) %in% c("Nuclei", "Cytoplasm", "Cells")) {
         if (strsplitNth(col, split = "_", n = 2) != "Number") {
           quantitativeCols <- c(quantitativeCols, col)
@@ -105,12 +105,12 @@ for (col in cn(resPeout2.1ect)) {
     }
   }
 }
-otherCol <- setdiff(cn(resPeout2.1ect), quantitativeCols)
+otherCol <- setdiff(cn(resPerCell), quantitativeCols)
 
-cellAnnot<-resPeout2.1ect[,otherCol]
+cellAnnot<-resPerCell[,otherCol]
 cellAnnot<-cellAnnot[,c('ImageNumber','ObjectNumber','dataset','imageKey','Image_Metadata_Field',
                         'Image_Metadata_Well',
-                        'Image_Metadata_cellLine','Image_FileName_OrigNucleusHoechst')]
+                        'Image_Metadata_cellLine','Image_FileName')]
 
 colnames(cellAnnot)<-c('imageNumber','objectNumber','diffDay','imageKey','imageField',
                        'well',
@@ -119,10 +119,10 @@ colnames(cellAnnot)<-c('imageNumber','objectNumber','diffDay','imageKey','imageF
 cellAnnot$ParentalCellLine<-substr(cellAnnot$cellLine,1,4)
 
 #rename features
-featureMat<-resPeout2.1ect[,quantitativeCols] |> t()
-rm(resPeout2.1ect);gc()
+featureMat<-resPerCell[,quantitativeCols] |> t()
+rm(resPerCell);gc()
 
-featureMat<-featureMat[!grepl("Parent",x= rn(featureMat)),]
+featureMat<-featureMat[!grepl("Parent",x= rn(featureMat)),] #unwanted column
 
 hashFamily<- c(
   AreaShape = "Shape",
@@ -229,57 +229,50 @@ renamedFeatureList<-sapply(renamedFeatureList, paste0, collapse="_")
 names(renamedFeatureList)<-rownames(featureMat)
 rownames(featureMat)<-renamedFeatureList
 
-ggplotly(qplotDensity(featureMat["Cyt_Shape_Area",], returnGraph = T) + scale_x_log10())
-ggplotly(qplotDensity(featureMat["Nuc_Shape_Area",], returnGraph = T) + scale_x_log10())
-
+qplotDensity(featureMat["Cyt_Shape_Area",], returnGraph = T) +
+           scale_x_log10()
+qplotDensity(featureMat["Nuc_Shape_Area",], returnGraph = T) +
+  scale_x_log10()
 
 #remove too small / too big cells
 featureMat <-featureMat[,
-              featureMat["Cyt_Shape_Area",] > 1000 &
-              featureMat["Cyt_Shape_Area",] < 10 ^ 5 &
-              featureMat["Nuc_Shape_Area",] < 10000
-            ]
+  featureMat["Cyt_Shape_Area",] > 1000 &
+  featureMat["Cyt_Shape_Area",] < 10 ^ 5 &
+  featureMat["Nuc_Shape_Area",] < 10000
+]
 
 featureMat<-na.omit(t(featureMat)) |> t()
 
 #remove too bright / too dark cells
-ggplotly(
-  qplotDensity(
-    featureMat["Cyt_Int_MeanInt_CGAN",],
-    returnGraph = T
-  ) + scale_x_log10()
-)
-ggplotly(
-  qplotDensity(
-    featureMat["Cyt_Int_MeanInt_Mito",],
-    returnGraph = T
-  ) + scale_x_log10()
-)
-ggplotly(
-  qplotDensity(
-    featureMat["Cyt_Int_MeanInt_EndoRet",],
-    returnGraph = T
-  ) + scale_x_log10()
-)
-ggplotly(
-  qplotDensity(
-    featureMat["Nuc_Int_MeanInt_Nuc",],
-    returnGraph = T
-  ) + scale_x_log10()
-)
+qplotDensity(
+  featureMat["Cyt_Int_MeanInt_CGAN",],
+  returnGraph = T
+) + scale_x_log10()
+qplotDensity(
+  featureMat["Cyt_Int_MeanInt_Mito",],
+  returnGraph = T
+) + scale_x_log10()
+qplotDensity(
+  featureMat["Cyt_Int_MeanInt_EndoRet",],
+  returnGraph = T
+) + scale_x_log10()
+qplotDensity(
+  featureMat["Nuc_Int_MeanInt_Nuc",],
+  returnGraph = T
+) + scale_x_log10()
 
 
 meanIntColumns<-c("Cyt_Int_MeanInt_CGAN","Cyt_Int_MeanInt_Mito","Cyt_Int_MeanInt_EndoRet","Nuc_Int_MeanInt_Nuc")
 cytFluo<-featureMat[c("Cyt_Int_MeanInt_CGAN","Cyt_Int_MeanInt_Mito","Cyt_Int_MeanInt_EndoRet"),] |> apply(2, sum)
 
 QCintDat<-data.frame(Nuc_Int_MeanInt_Nuc=featureMat[c("Nuc_Int_MeanInt_Nuc"),],cytoInt=cytFluo)
-QCintDat$dens2d<-oob::pointdensity.nrd(log10(QCintDat))
-
+QCintDat$dens2d<-oob::pointdensity.nrd(log10(QCintDat)) 
 
 ggplot(data.frame(Nuc_Int_MeanInt_Nuc=featureMat[c("Nuc_Int_MeanInt_Nuc"),],cytoInt=cytFluo,filt=
-  featureMat["Nuc_Int_MeanInt_Nuc",]>0.003 & QCintDat$dens2d>0.0001),
-  aes(x=Nuc_Int_MeanInt_Nuc,y=cytoInt,color=filt))+
-  scattermore::geom_scattermore()+scale_x_log10()+scale_y_log10()
+                    featureMat["Nuc_Int_MeanInt_Nuc",]>0.003 & QCintDat$dens2d>0.0001),
+       aes(x=Nuc_Int_MeanInt_Nuc,y=cytoInt,color=filt))+
+  scattermore::geom_scattermore()+scale_x_log10()+scale_y_log10()+
+  xlab("Nucleus Mean Intensity")+ylab("Sum of Cytoplasm Mean Intensity")
 
 
 featureMat <-featureMat[, featureMat["Nuc_Int_MeanInt_Nuc",]>0.003 & QCintDat$dens2d>0.0001]
@@ -310,14 +303,14 @@ dev.off()
 
 ## Regularization of CP features
 #extract spatial infos
-regularizationDat<-fastRead("zenodoArchive/CP_FeatureRegularization.tsv")
+regularizationDat<-fastRead(paste0(inputDir,"CP_FeatureRegularization.tsv"))
 regu<-regularizationDat$transformation;names(regu)<-rn(regularizationDat)
 rm(regularizationDat)
 
 spatialAnnotFeatures<-names(regu)[regu=="move2spatialMat"]
 spatialInfoAnnot<-t(featureMat[spatialAnnotFeatures,])
 featureMat<-featureMat[!rn(featureMat) %in% spatialAnnotFeatures,]
-saveRDS(spatialInfoAnnot,"out/spatialInfoAnnot.rds")
+saveRDS(spatialInfoAnnot,"out2.1/spatialInfoAnnot.rds")
 rm(spatialInfoAnnot)
 
 saveRDS(featureMat,"out2.1/rawFeatureMat.rds")
@@ -329,7 +322,7 @@ featureMat<-apply(featureMat,1,function(x){
   x
 }) |> t()
 
-#Per type trans
+#Per feature type transformation
 
 for(f in names(regu)[regu=="log2(x+1)"]){
   featureMat[f,]<-log2(featureMat[f,]+1)
@@ -379,32 +372,6 @@ for(f in names(regu)[regu=="2{ log2(max(x)-x+1)}"]){
   #qplotDensity(x)
 }
 
-#
-rawFeatureMat <- readRDS("out2.1/rawFeatureMat.rds")
-
-intersect(rownames(featureMat),names(regu)[regu=="log2(max(x)-x+0.01)"])
-
-exampleOfFeatTransfo<-c("Cyt_Int_MeanInt_Mito"="log2(x+1)",
-                        "Cel_Neighbors_PctTouching_Adjacent"="x",
-                        "Cyt_Txtr_Contrast_Mito_3_03_256"="log2(x+0.01)",
-                        "Cel_Shape_EulerNumber"="log2(max(x)-x+0.1)",
-                        "Cyt_Txtr_InfoMeas1_CGAN_3_00_256"="log2(max(x)-x+0.5)",
-                        "Cyt_Txtr_InfoMeas2_Mito_3_03_256"="log2(max(x)-x+0.01)")
-
-g<-list();i<-1;
-for(feature in names(exampleOfFeatTransfo)){
-  g[[i]]<-qplotDensity(rawFeatureMat[feature,],returnGraph = T)+ggtitle(paste0(feature))
-  g[[i+1]]<-qplotDensity(featureMat[feature,],returnGraph = T)+ggtitle(paste0("trans=",exampleOfFeatTransfo[feature]))
-  i<-i+2
-}
-
-pdf("out2.1/featureTransfoExample.pdf",width = 20,height = 6)
-multiplot(plotlist = g,cols = 2,layout = matrix(1:12,ncol = 6,byrow = F))
-dev.off()
-
-rm(rawFeatureMat);gc()
-#
-
 nFeatPerPlot<-20
 pdf("out2.1/allFeatureDistribPostRegularization.pdf",width = 32,height = 18)
 for(i in seq(1,nrow(featureMat),nFeatPerPlot)){
@@ -423,7 +390,7 @@ dev.off()
 saveRDS(featureMat,"out2.1/regFeatureMat.rds")
 fastWrite(cellAnnot,"out2.1/cellAnnot.tsv")
 
-## DATASET Subsampling, trying to have equal number of cells from each experimental population
+## Dataset Subsampling, trying to have equal number of cells from each experimental population
 cellAnnot$expPopWithReplicate<-paste0(cellAnnot$diffDay, "_", cellAnnot$cellLine)
 cellAnnot$expPop<-substr(cellAnnot$expPopWithReplicate,1,8)
 
@@ -434,8 +401,7 @@ samplePerExpPop<- lapply(names(tablePops), function(lvl) {
   subsampling <- rn(cellAnnot)[which(cellAnnot$expPopWithReplicate == lvl)]
   sample(subsampling,size = min(length(subsampling),2000))
 });names(samplePerExpPop)<-names(tablePops)
-
-
+subsampling<-unlist(samplePerExpPop)
 subsampling<-sample(subsampling,len(subsampling)) #shuffle the result
 
 featureMat<-featureMat[,subsampling]
@@ -455,7 +421,7 @@ graphOfFeature <-
 
 c1 = cluster_fast_greedy(graphOfFeature)
 
-pdf("out2.1/moduleOfFeautures.pdf",width = 7,height = 7)
+pdf("out2.1/moduleOfFeatures.pdf",width = 7,height = 7)
 plot(c1,
      graphOfFeature,
      vertex.label = NA,
@@ -512,21 +478,20 @@ featurePerModule[[34]]<-"Cyt_Int_MaxInt_Mito"
 featurePerModule[[35]]<-"Cyt_Int_IntegrIntEdge_EndoRet"
 featurePerModule[[36]]<-"Cel_Shape_Area"
 
-
-
-
 selectedFeatures <- unlist(featurePerModule)
 
 #Heatmap of all feature on a random subset of cells
 pdf("out2.1/completeHeatmap.pdf",width = 12,height = 30)
-heatmap.DM(featureMat[selectedFeatures,sample.int(ncol(featureMat),  1000)])
+heatmap.DM(featureMat[selectedFeatures,sample.int(ncol(featureMat),  1000)],
+          name = "regularized\nfeature\nvalues")
 dev.off()
 
 #zoom on Zernike feature.. they are bad
 zernikeFeat<-grep("Zernike",selectedFeatures,value = T)
 
 pdf("out2.1/HeatmapZernike.pdf",width = 20,height = 30)
-heatmap.DM(featureMat[zernikeFeat,sample.int(ncol(featureMat),  1000)])
+heatmap.DM(featureMat[zernikeFeat,sample.int(ncol(featureMat),  1000)],
+           name = "regularized\nfeature\nvalues")
 dev.off()
 
 #UMAP, unsupervised clustering, export to web app for removing bad clusters by inspecting images
@@ -536,24 +501,10 @@ cellAnnot$leidenClust<-leidenFromUMAP(umap,n_neighbors = 20, resolution_paramete
 proj2d(umap, useScatterMore=T,colorBy = cellAnnot$diffDay)
 proj2d(umap, useScatterMore=T,colorBy = cellAnnot$leidenClust,plotFactorsCentroids = T)
 
-
-spatialInfoAnnot<-readRDS("out2.1/spatialInfoAnnot.rds")[subsampling,]
-
-export2WebApp<-data.frame(x=umap$embedding[,1],y=umap$embedding[,2],diffDay=cellAnnot$diffDay,cluster=cellAnnot$leidenClust,
-                          image_filename=paste0("day",cellAnnot$diffDay|>as.character() |> substr(2,3),"/imgsOut/",
-                                                substr(cellAnnot$imageFileName,1,nchar(cellAnnot$imageFileName)-5),".png"),
-                          bbox_minX=spatialInfoAnnot[,"Cel_Shape_BBoxMin_X"],
-                          bbox_maxX=spatialInfoAnnot[,"Cel_Shape_BBoxMax_X"],
-                          bbox_minY=spatialInfoAnnot[,"Cel_Shape_BBoxMin_Y"],
-                          bbox_maxY=spatialInfoAnnot[,"Cel_Shape_BBoxMax_Y"],
-                          centerX = spatialInfoAnnot[,"Nuc_Location_Center_X"],
-                          centerY= spatialInfoAnnot[,"Nuc_Location_Center_Y"],
-                          t(featureMat[setdiff(selectedFeatures,zernikeFeat),]))
-fastWrite(export2WebApp,"D:/PostdocUnsync/05_cellPainting/webapp/data/webAppFeatures.tsv")
-
-
 selectedFeature<-setdiff(selectedFeatures,c(zernikeFeat,"Cel_Neighbors_AngleBtNghbors_Adjacent"))
-selectedSamples<-rn(cellAnnot)[!cellAnnot$leidenClust %in% paste0("k",10:14)] # bad clusters are k10,11,12,13,14
+selectedSamples<-rn(cellAnnot)[!cellAnnot$leidenClust %in% paste0("k",10:14)] 
+# Originally, bad clusters are k10,11,12,13,14 based, of the pictures of cells
+# belonging to these clusters
 
 cellAnnot<-cellAnnot[selectedSamples,]
 featureMat<-featureMat[selectedFeature,selectedSamples]
