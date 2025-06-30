@@ -1,35 +1,22 @@
 setwd(".")
 
-library(oobLegacy)
 
-gexData<-fastRead("input/gexMetacellsPerCellLine.tsv",as.matrix = T)
-gex2cpModel<-fastRead("results/GeXmodelMulti.tsv")
+library(oob)
 
-cpData<-fastRead("input/cpMetacellsPerCellLine.tsv",as.matrix = T)
-cp2gexModel<-fastRead("results/CPmodelMulti.tsv")
+inputDir <- "zenodoArchive/"
+dir.create("out3.3", showWarnings = FALSE)
 
-computeTheoMat<-function(mat,model){
-  nfeatureModel=nrow(model)-1
-  res<-apply(mat,1,function(obs){
-    apply(model,2,function(feature){
-      feature[1]+sum(feature[2:length(feature)]*obs)
-    })
-  })
-  t(res)
+gex2cpModel<-fastRead(paste0(inputDir,"/CPGEX_GeXmodellLasso.tsv"))
+
+computeTheoMat <- function(mat, model) {
+    nfeatures <- nrow(model) - 1
+    res <- mat %*% model[2:(nfeatures + 1), ]
+    sweep(res, 1, model[1, ], "+")
 }
-
-
-#create cp theo
-scData<-readRDS("countTableCorrected.rds") |> t()
+#create cp theo mat from gex model
+scData<-readRDS("countTableCorrected.rds") |> t() #available upon request
 cpTheoMat<-computeTheoMat(scData, gex2cpModel)
 
-saveRDS(cpTheoMat, "outRobj/cpTheoMat.rds")
-
-rm(scData, cpTheoMat)
-
-cpData<- fastRead("")  |> t()
-
-scTheoMat<-computeTheoMat(scData, cp2gexModel)
-
+fastWrite(cpTheoMat, "out3.3/CPGEX_predictedCPfeatureFromGeX.tsv")
 
 

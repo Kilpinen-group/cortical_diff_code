@@ -47,16 +47,9 @@ Currently available at [BioArxiv](https://doi.org/10.1101/2023.12.03.569583]).
 
 ## Rerun R/python code
 
-### Cell Painting
 
 1. Execute `git clone https://github.com/Kilpinen-group/cortical_diff_code.git`
 2. Download the zenodo [archive](https://zenodo.org/records/13913047), extract and rename the folder *zenodoArchive*
 3. Copy the zenodo folder in the repository directory (cortical_diff_code).
 4. Install the dependencies
 5. Run the code, do not forget to change the `setwd` lines.
-
-### scRNA-Seq
-TBA
-
-### scRNA-Seq X Cell Painting
-TBA

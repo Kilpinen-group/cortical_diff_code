@@ -1,11 +1,14 @@
 setwd(".")
 
-library(oobLegacy)
+library(oob)
 
-cellAnnot<-fastRead("cellAnnotFiltered.tsv")
-featureMat<-fastRead("featureMatFiltered.tsv",as.matrix = TRUE)
+dir.create("out3.1", showWarnings = FALSE)
+inputDir <- "zenodoArchive/"
 
-scLine<-c('d20_11.4','d20_47.2','d20_61.1','d20_61.2','d20_62.4','d20_82.6','d40_11.4','d40_61.2','d40_62.4','d40_82.6','d70_11.4','d70_61.2','d70_62.4','d70_82.6')
+cellAnnot<-fastRead(paste0(inputDir,"/","CP_cellAnnotFiltered.tsv"))
+featureMat<-fastRead(paste0(inputDir,"/","CP_featureMatFiltered.tsv"),as.matrix = TRUE)
+
+scLine<-c('d20L11.4','d20L47.2','d20L61.1','d20L61.2','d20L62.4','d20L82.6','d40L11.4','d40L61.2','d40L62.4','d40L82.6','d70L11.4','d70L61.2','d70L62.4','d70L82.6')
 cpLine<-cellAnnot$expPop |> as.factor() |> levels()
 
 commonLine<-intersect(scLine,cpLine)
@@ -32,7 +35,7 @@ cellAnnot$metaCells<-metaCells[rn(cellAnnot)]
 
 cpMetacellsPerCellLine<-aggregMatPerVector(featureMat,cellAnnot$metaCells,FUN = mean) |> t()
 
-fastWrite(cpMetacellsPerCellLine,"input/cpMetacellsPerCellLine.tsv")
+fastWrite(cpMetacellsPerCellLine,"out3.1/CPGEX_cpMetacellsPerCellLine.tsv")
 
 
 
