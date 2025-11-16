@@ -53,3 +53,5 @@ Currently available at [BioArxiv](https://doi.org/10.1101/2023.12.03.569583]).
 3. Copy the zenodo folder in the repository directory (cortical_diff_code).
 4. Install the dependencies
 5. Run the code, do not forget to change the `setwd` lines.
+
+[Current link to the Cell Painting browsing web app](http://128.214.252.182/)
