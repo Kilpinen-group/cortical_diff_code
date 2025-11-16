@@ -1,4 +1,4 @@
-# Code for "Characterization of cortical neurodevelopment in vitro using gene expression and morphology profiles from single cells"
+# Code for "Joint profiling of cell morphology and gene expression during in vitro neurodevelopment"
 
 Currently available at [BioArxiv](https://doi.org/10.1101/2023.12.03.569583]).
 
